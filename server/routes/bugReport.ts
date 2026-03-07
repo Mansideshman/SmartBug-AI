@@ -7,7 +7,8 @@ export const bugReportRouter = Router();
 // Analyze screenshot using GROQ Llama Scout (vision model)
 bugReportRouter.post('/analyze-screenshot', async (req: Request, res: Response) => {
   try {
-    const settings = loadSettings();
+    const { imageBase64, environmentInfo, settings: passedSettings } = req.body;
+    const settings = loadSettings(passedSettings);
     const { apiKey } = settings.groq;
 
     if (!apiKey) {
@@ -18,7 +19,6 @@ bugReportRouter.post('/analyze-screenshot', async (req: Request, res: Response) 
       return;
     }
 
-    const { imageBase64, environmentInfo } = req.body;
 
     if (!imageBase64) {
       res.status(400).json({
@@ -86,7 +86,8 @@ Format the output as plain text suitable for a JIRA ticket description.`,
 // Create JIRA ticket
 bugReportRouter.post('/create-jira-ticket', async (req: Request, res: Response) => {
   try {
-    const settings = loadSettings();
+    const { summary, description, additionalNotes, environmentInfo, imageBase64, settings: passedSettings } = req.body;
+    const settings = loadSettings(passedSettings);
     const { baseUrl, email, apiToken, projectKey, issueType } = settings.jira;
 
     if (!baseUrl || !email || !apiToken || !projectKey) {
@@ -96,8 +97,6 @@ bugReportRouter.post('/create-jira-ticket', async (req: Request, res: Response) 
       });
       return;
     }
-
-    const { summary, description, additionalNotes, environmentInfo, imageBase64 } = req.body;
 
     const fullDescription = `
 ${description}

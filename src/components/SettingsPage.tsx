@@ -38,11 +38,25 @@ function SettingsPage() {
 
   // Load settings on mount
   useEffect(() => {
+    // Try localStorage first (better for web/Vercel)
+    const local = localStorage.getItem('bug-report-settings');
+    if (local) {
+      try {
+        setSettings(JSON.parse(local));
+        return;
+      } catch (e) {
+        console.error('Failed to parse local settings', e);
+      }
+    }
+
+    // Fallback to server (for local dev)
     const loadSettings = async () => {
       try {
         const res = await fetch('/api/settings');
-        const data = await res.json();
-        setSettings(data);
+        if (res.ok) {
+          const data = await res.json();
+          setSettings(data);
+        }
       } catch (err) {
         console.error('Failed to load settings:', err);
       }
@@ -54,21 +68,20 @@ function SettingsPage() {
     setIsSaving(true);
     setSaveStatus({ type: 'idle', message: '' });
 
+    // Save to localStorage
+    localStorage.setItem('bug-report-settings', JSON.stringify(settings));
+
     try {
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
-      const data = await res.json();
-
-      if (data.success) {
-        setSaveStatus({ type: 'success', message: '✅ Settings saved successfully!' });
-      } else {
-        setSaveStatus({ type: 'error', message: data.message });
-      }
+      
+      setSaveStatus({ type: 'success', message: '✅ Settings saved successfully!' });
     } catch (err: any) {
-      setSaveStatus({ type: 'error', message: `Failed to save: ${err.message}` });
+      // We still show success if it saved to localStorage but maybe failed on server (e.g. Vercel)
+      setSaveStatus({ type: 'success', message: '✅ Settings saved in browser!' });
     } finally {
       setIsSaving(false);
       setTimeout(() => setSaveStatus({ type: 'idle', message: '' }), 4000);
@@ -78,17 +91,12 @@ function SettingsPage() {
   const handleTestJira = async () => {
     setJiraTestStatus({ type: 'loading', message: 'Testing JIRA connection...' });
 
-    // Save settings first to ensure we test against the latest values
     try {
-      await fetch('/api/settings', {
+      const res = await fetch('/api/test-jira', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(settings) 
       });
-    } catch {}
-
-    try {
-      const res = await fetch('/api/test-jira', { method: 'POST' });
       const data = await res.json();
 
       setJiraTestStatus({
@@ -103,17 +111,12 @@ function SettingsPage() {
   const handleTestGroq = async () => {
     setGroqTestStatus({ type: 'loading', message: 'Testing GROQ connection...' });
 
-    // Save settings first
     try {
-      await fetch('/api/settings', {
+      const res = await fetch('/api/test-groq', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(settings)
       });
-    } catch {}
-
-    try {
-      const res = await fetch('/api/test-groq', { method: 'POST' });
       const data = await res.json();
 
       setGroqTestStatus({

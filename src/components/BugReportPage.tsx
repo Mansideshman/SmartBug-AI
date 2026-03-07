@@ -90,6 +90,10 @@ function BugReportPage() {
 
     setStatus({ type: 'loading', message: '🔍 Analyzing screenshot with Llama Scout...' });
 
+    // Load settings from localStorage
+    const localSettings = localStorage.getItem('bug-report-settings');
+    const settings = localSettings ? JSON.parse(localSettings) : null;
+
     try {
       // Step 1: Analyze screenshot
       const environmentInfo = getEnvironmentInfo();
@@ -97,13 +101,17 @@ function BugReportPage() {
       const analyzeRes = await fetch('/api/analyze-screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64, environmentInfo }),
+        body: JSON.stringify({ 
+          imageBase64, 
+          environmentInfo,
+          settings // Pass settings to API
+        }),
       });
 
       const analyzeData = await analyzeRes.json();
 
-      if (!analyzeData.success) {
-        setStatus({ type: 'error', message: analyzeData.message });
+      if (!analyzeRes.ok || !analyzeData.success) {
+        setStatus({ type: 'error', message: analyzeData.message || 'Analysis failed' });
         return;
       }
 
@@ -124,6 +132,7 @@ function BugReportPage() {
           additionalNotes,
           environmentInfo,
           imageBase64,
+          settings // Pass settings to API
         }),
       });
 

@@ -5,9 +5,9 @@ import { loadSettings } from './settings.js';
 export const testConnectionRouter = Router();
 
 // Test JIRA connection
-testConnectionRouter.post('/test-jira', async (_req: Request, res: Response) => {
+testConnectionRouter.post('/test-jira', async (req: Request, res: Response) => {
   try {
-    const settings = loadSettings();
+    const settings = loadSettings(req.body); // req.body IS the settings in SettingsPage.tsx
     const { baseUrl, email, apiToken } = settings.jira;
 
     if (!baseUrl || !email || !apiToken) {
@@ -118,9 +118,9 @@ testConnectionRouter.post('/test-jira', async (_req: Request, res: Response) => 
 });
 
 // Test GROQ connection
-testConnectionRouter.post('/test-groq', async (_req: Request, res: Response) => {
+testConnectionRouter.post('/test-groq', async (req: Request, res: Response) => {
   try {
-    const settings = loadSettings();
+    const settings = loadSettings(req.body);
     const { apiKey } = settings.groq;
 
     if (!apiKey) {

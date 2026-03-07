@@ -32,7 +32,10 @@ const defaultSettings: AppSettings = {
   },
 };
 
-export function loadSettings(): AppSettings {
+export function loadSettings(passedSettings?: AppSettings): AppSettings {
+  if (passedSettings && passedSettings.jira && passedSettings.groq) {
+    return { ...defaultSettings, ...passedSettings };
+  }
   try {
     if (fs.existsSync(SETTINGS_PATH)) {
       const data = fs.readFileSync(SETTINGS_PATH, 'utf-8');

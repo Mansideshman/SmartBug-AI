@@ -15,6 +15,11 @@ app.use('/api', settingsRouter);
 app.use('/api', testConnectionRouter);
 app.use('/api', bugReportRouter);
 
-app.listen(PORT, () => {
-  console.log(`🚀 Bug Report Enhancer API running on http://localhost:${PORT}`);
-});
+// Export for serverless (Vercel)
+export default app;
+
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Bug Report Enhancer API running on http://localhost:${PORT}`);
+  });
+}
