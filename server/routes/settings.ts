@@ -7,12 +7,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SETTINGS_PATH = path.join(__dirname, '..', 'settings.json');
 
 export interface AppSettings {
-  jira: {
-    projectKey: string;
-    apiToken: string;
-    email: string;
+  youtrack: {
+    projectId: string;
+    token: string;
     baseUrl: string;
-    issueType: string;
   };
   groq: {
     apiKey: string;
@@ -20,12 +18,10 @@ export interface AppSettings {
 }
 
 const defaultSettings: AppSettings = {
-  jira: {
-    projectKey: '',
-    apiToken: '',
-    email: '',
+  youtrack: {
+    projectId: '',
+    token: '',
     baseUrl: '',
-    issueType: 'Bug',
   },
   groq: {
     apiKey: '',
@@ -33,7 +29,7 @@ const defaultSettings: AppSettings = {
 };
 
 export function loadSettings(passedSettings?: AppSettings): AppSettings {
-  if (passedSettings && passedSettings.jira && passedSettings.groq) {
+  if (passedSettings && passedSettings.youtrack && passedSettings.groq) {
     return { ...defaultSettings, ...passedSettings };
   }
   try {

@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 
-interface JiraSettings {
-  projectKey: string;
-  apiToken: string;
-  email: string;
+interface YoutrackSettings {
+  projectId: string;
+  token: string;
   baseUrl: string;
-  issueType: string;
 }
 
 interface GroqSettings {
@@ -13,20 +11,20 @@ interface GroqSettings {
 }
 
 interface Settings {
-  jira: JiraSettings;
+  youtrack: YoutrackSettings;
   groq: GroqSettings;
 }
 
 function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({
-    jira: { projectKey: '', apiToken: '', email: '', baseUrl: '', issueType: 'Bug' },
+    youtrack: { projectId: '', token: '', baseUrl: '' },
     groq: { apiKey: '' },
   });
   const [saveStatus, setSaveStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({
     type: 'idle',
     message: '',
   });
-  const [jiraTestStatus, setJiraTestStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error'; message: string }>({
+  const [youtrackTestStatus, setYoutrackTestStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error'; message: string }>({
     type: 'idle',
     message: '',
   });
@@ -88,23 +86,23 @@ function SettingsPage() {
     }
   };
 
-  const handleTestJira = async () => {
-    setJiraTestStatus({ type: 'loading', message: 'Testing JIRA connection...' });
+  const handleTestYoutrack = async () => {
+    setYoutrackTestStatus({ type: 'loading', message: 'Testing YouTrack connection...' });
 
     try {
-      const res = await fetch('/api/test-jira', { 
+      const res = await fetch('/api/test-youtrack', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings) 
       });
       const data = await res.json();
 
-      setJiraTestStatus({
+      setYoutrackTestStatus({
         type: data.success ? 'success' : 'error',
         message: data.message,
       });
     } catch (err: any) {
-      setJiraTestStatus({ type: 'error', message: `Connection failed: ${err.message}` });
+      setYoutrackTestStatus({ type: 'error', message: `Connection failed: ${err.message}` });
     }
   };
 
@@ -128,8 +126,8 @@ function SettingsPage() {
     }
   };
 
-  const updateJira = (field: keyof JiraSettings, value: string) => {
-    setSettings((prev) => ({ ...prev, jira: { ...prev.jira, [field]: value } }));
+  const updateYoutrack = (field: keyof YoutrackSettings, value: string) => {
+    setSettings((prev) => ({ ...prev, youtrack: { ...prev.youtrack, [field]: value } }));
   };
 
   const updateGroq = (field: keyof GroqSettings, value: string) => {
@@ -138,90 +136,66 @@ function SettingsPage() {
 
   return (
     <div className="page-content settings-page">
-      {/* JIRA Settings Card */}
+      {/* YouTrack Settings Card */}
       <div className="card">
         <h2 className="card-title">
           <span className="card-icon">🔗</span>
-          JIRA Connection Details
+          YouTrack Connection Details
         </h2>
         <div className="settings-grid">
           <div className="form-group">
-            <label htmlFor="jira-project-key" className="form-label">Project Key</label>
+            <label htmlFor="youtrack-project-id" className="form-label">Project ID</label>
             <input
-              id="jira-project-key"
+              id="youtrack-project-id"
               type="text"
               className="form-input"
-              placeholder="e.g. VWO"
-              value={settings.jira.projectKey}
-              onChange={(e) => updateJira('projectKey', e.target.value)}
+              placeholder="e.g. 0-0 (or project name)"
+              value={settings.youtrack.projectId}
+              onChange={(e) => updateYoutrack('projectId', e.target.value)}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="jira-email" className="form-label">JIRA Email</label>
+            <label htmlFor="youtrack-token" className="form-label">Permanent Token</label>
             <input
-              id="jira-email"
-              type="email"
-              className="form-input"
-              placeholder="your-email@company.com"
-              value={settings.jira.email}
-              onChange={(e) => updateJira('email', e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="jira-api-token" className="form-label">API Token</label>
-            <input
-              id="jira-api-token"
+              id="youtrack-token"
               type="password"
               className="form-input"
-              placeholder="Your JIRA API token"
-              value={settings.jira.apiToken}
-              onChange={(e) => updateJira('apiToken', e.target.value)}
+              placeholder="Your YouTrack Permanent Token"
+              value={settings.youtrack.token}
+              onChange={(e) => updateYoutrack('token', e.target.value)}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="jira-url" className="form-label">JIRA URL</label>
+          <div className="form-group full-width">
+            <label htmlFor="youtrack-url" className="form-label">YouTrack Base URL</label>
             <input
-              id="jira-url"
+              id="youtrack-url"
               type="url"
               className="form-input"
-              placeholder="https://yourcompany.atlassian.net"
-              value={settings.jira.baseUrl}
-              onChange={(e) => updateJira('baseUrl', e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="jira-issue-type" className="form-label">Issue Type</label>
-            <input
-              id="jira-issue-type"
-              type="text"
-              className="form-input"
-              placeholder="Bug"
-              value={settings.jira.issueType}
-              onChange={(e) => updateJira('issueType', e.target.value)}
+              placeholder="https://example.youtrack.cloud"
+              value={settings.youtrack.baseUrl}
+              onChange={(e) => updateYoutrack('baseUrl', e.target.value)}
             />
           </div>
         </div>
 
         <button
-          id="btn-test-jira"
+          id="btn-test-youtrack"
           className="test-btn"
-          onClick={handleTestJira}
-          disabled={jiraTestStatus.type === 'loading'}
+          onClick={handleTestYoutrack}
+          disabled={youtrackTestStatus.type === 'loading'}
         >
-          {jiraTestStatus.type === 'loading' ? (
+          {youtrackTestStatus.type === 'loading' ? (
             <><span className="spinner"></span> Testing...</>
           ) : (
-            <>🔌 Test JIRA Connection</>
+            <>🔌 Test YouTrack Connection</>
           )}
         </button>
 
-        {jiraTestStatus.message && (
-          <div className={`status-message status-${jiraTestStatus.type} compact`}>
-            {jiraTestStatus.message}
+        {youtrackTestStatus.message && (
+          <div className={`status-message status-${youtrackTestStatus.type} compact`}>
+            {youtrackTestStatus.message}
           </div>
         )}
       </div>

@@ -4,115 +4,61 @@ import { loadSettings } from './settings.js';
 
 export const testConnectionRouter = Router();
 
-// Test JIRA connection
-testConnectionRouter.post('/test-jira', async (req: Request, res: Response) => {
+// Test YouTrack connection
+testConnectionRouter.post('/test-youtrack', async (req: Request, res: Response) => {
   try {
-    const settings = loadSettings(req.body); // req.body IS the settings in SettingsPage.tsx
-    const { baseUrl, email, apiToken } = settings.jira;
+    const settings = loadSettings(req.body);
+    const { baseUrl, token } = settings.youtrack;
 
-    if (!baseUrl || !email || !apiToken) {
+    if (!baseUrl || !token) {
       res.status(400).json({
         success: false,
-        message: 'Please fill in JIRA URL, Email, and API Token first.',
+        message: 'Please fill in YouTrack URL and Permanent Token first.',
       });
       return;
     }
 
-    // Normalize the URL — strip trailing slash, ensure no double slashes
     const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
-    const url = `${cleanBaseUrl}/rest/api/2/myself`;
-    const auth = Buffer.from(`${email}:${apiToken}`).toString('base64');
+    const url = `${cleanBaseUrl}/api/users/me?fields=name,login,email`;
 
-    console.log(`Testing JIRA connection to: ${url}`);
+    console.log(`Testing YouTrack connection to: ${url}`);
 
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': `Basic ${auth}`,
+        'Authorization': `Bearer ${token}`,
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
     });
 
-    const contentType = response.headers.get('content-type') || '';
     const responseText = await response.text();
-
-    // Check if we got HTML back (usually means wrong URL or redirect to login)
-    if (!contentType.includes('application/json')) {
-      res.status(400).json({
-        success: false,
-        message: `JIRA returned non-JSON response (${response.status}). This usually means the JIRA URL is incorrect. Make sure the URL looks like: https://yourcompany.atlassian.net (no trailing path). Received content-type: ${contentType}`,
-      });
-      return;
-    }
-
-    // Try to parse the JSON response
     let data: any;
     try {
       data = JSON.parse(responseText);
     } catch {
       res.status(400).json({
         success: false,
-        message: `JIRA returned invalid JSON. Status: ${response.status}. Response: ${responseText.substring(0, 200)}`,
+        message: `YouTrack returned invalid response. Status: ${response.status}.`,
       });
       return;
     }
 
     if (response.ok) {
-      // Also fetch available projects to help user
-      let projectInfo = '';
-      let issueTypeInfo = '';
-      try {
-        const projUrl = `${cleanBaseUrl}/rest/api/2/project`;
-        const projResponse = await fetch(projUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Basic ${auth}`,
-            'Accept': 'application/json',
-          },
-        });
-        if (projResponse.ok) {
-          const projects = await projResponse.json();
-          const projectKeys = projects.map((p: any) => `${p.key} (${p.name})`).join(', ');
-          projectInfo = ` | Available projects: ${projectKeys}`;
-        }
-      } catch {}
-
-      // Fetch issue types for the configured project
-      const { projectKey } = settings.jira;
-      if (projectKey) {
-        try {
-          const issueTypeUrl = `${cleanBaseUrl}/rest/api/2/project/${projectKey}`;
-          const itResponse = await fetch(issueTypeUrl, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Basic ${auth}`,
-              'Accept': 'application/json',
-            },
-          });
-          if (itResponse.ok) {
-            const projData = await itResponse.json();
-            const issueTypes = projData.issueTypes?.map((it: any) => it.name).join(', ') || 'none found';
-            issueTypeInfo = ` | Issue types for ${projectKey}: ${issueTypes}`;
-          }
-        } catch {}
-      }
-
       res.json({
         success: true,
-        message: `Connected successfully! Logged in as: ${data.displayName} (${data.emailAddress})${projectInfo}${issueTypeInfo}`,
+        message: `Connected successfully! Logged in as: ${data.name || data.login} (${data.email || 'no email'})`,
       });
     } else {
-      const errorMsg = data.errorMessages?.join(', ') || data.message || responseText.substring(0, 300);
       res.status(response.status).json({
         success: false,
-        message: `JIRA connection failed (${response.status}): ${errorMsg}`,
+        message: `YouTrack connection failed (${response.status}): ${data.error_description || data.message || responseText}`,
       });
     }
   } catch (err: any) {
     res.status(500).json({
       success: false,
-      message: `JIRA connection error: ${err.message}`,
+      message: `YouTrack connection error: ${err.message}`,
     });
   }
 });
