@@ -116,14 +116,14 @@ function BugReportPage() {
       }
 
       setAnalysisText(analyzeData.analysis);
-      setStatus({ type: 'loading', message: '📝 Creating JIRA ticket...' });
+      setStatus({ type: 'loading', message: '📝 Creating YouTrack issue...' });
 
       // Extract first line as summary
       const lines = analyzeData.analysis.split('\n').filter((l: string) => l.trim());
       const summary = lines[0]?.replace(/^\*\*.*?\*\*:?\s*/, '').substring(0, 255) || 'Bug Report from Screenshot';
 
-      // Step 2: Create JIRA ticket
-      const createRes = await fetch('/api/create-jira-ticket', {
+      // Step 2: Create YouTrack issue
+      const createRes = await fetch('/api/create-youtrack-issue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,7 +141,7 @@ function BugReportPage() {
       if (createData.success) {
         setStatus({
           type: 'success',
-          message: `✅ JIRA ticket ${createData.ticketKey} created successfully!`,
+          message: `✅ YouTrack issue ${createData.ticketKey} created successfully!`,
         });
       } else {
         setStatus({ type: 'error', message: createData.message });
@@ -258,7 +258,7 @@ function BugReportPage() {
         ) : (
           <>
             <span className="btn-icon">🚀</span>
-            Analyze & Create JIRA Ticket
+            Analyze & Create YouTrack Issue
           </>
         )}
       </button>
