@@ -4,6 +4,27 @@ import { loadSettings } from './settings.js';
 
 export const testConnectionRouter = Router();
 
+// Helper function to get detailed fetch error message
+function getFetchErrorMessage(err: any): string {
+  if (err.cause) {
+    return `${err.message} (Cause: ${err.cause.message || err.cause})`;
+  }
+  if (err.code) {
+    const errorCodes: Record<string, string> = {
+      'ENOTFOUND': 'DNS lookup failed - check the URL',
+      'ECONNREFUSED': 'Connection refused - server may be down or port blocked',
+      'ECONNRESET': 'Connection reset by server',
+      'ETIMEDOUT': 'Connection timed out',
+      'CERT_HAS_EXPIRED': 'SSL certificate has expired',
+      'UNABLE_TO_VERIFY_LEAF_SIGNATURE': 'SSL certificate verification failed',
+      'DEPTH_ZERO_SELF_SIGNED_CERT': 'Self-signed SSL certificate not trusted',
+      'ENOTEMPTY': 'Host not found',
+    };
+    return errorCodes[err.code] || `${err.message} (Code: ${err.code})`;
+  }
+  return err.message;
+}
+
 // Test YouTrack connection
 testConnectionRouter.post('/test-youtrack', async (req: Request, res: Response) => {
   try {
@@ -23,42 +44,54 @@ testConnectionRouter.post('/test-youtrack', async (req: Request, res: Response) 
 
     console.log(`Testing YouTrack connection to: ${url}`);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-    const responseText = await response.text();
-    let data: any;
     try {
-      data = JSON.parse(responseText);
-    } catch {
-      res.status(400).json({
-        success: false,
-        message: `YouTrack returned invalid response. Status: ${response.status}.`,
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
       });
-      return;
-    }
+      clearTimeout(timeoutId);
 
-    if (response.ok) {
-      res.json({
-        success: true,
-        message: `Connected successfully! Logged in as: ${data.name || data.login} (${data.email || 'no email'})`,
-      });
-    } else {
-      res.status(response.status).json({
-        success: false,
-        message: `YouTrack connection failed (${response.status}): ${data.error_description || data.message || responseText}`,
-      });
+      const responseText = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        res.status(400).json({
+          success: false,
+          message: `YouTrack returned invalid response. Status: ${response.status}. Response: ${responseText.substring(0, 500)}`,
+        });
+        return;
+      }
+
+      if (response.ok) {
+        res.json({
+          success: true,
+          message: `Connected successfully! Logged in as: ${data.name || data.login} (${data.email || 'no email'})`,
+        });
+      } else {
+        res.status(response.status).json({
+          success: false,
+          message: `YouTrack connection failed (${response.status}): ${data.error_description || data.message || responseText}`,
+        });
+      }
+    } catch (fetchErr: any) {
+      clearTimeout(timeoutId);
+      throw fetchErr;
     }
   } catch (err: any) {
+    console.error('YouTrack connection error details:', err);
+    const detailedMessage = getFetchErrorMessage(err);
     res.status(500).json({
       success: false,
-      message: `YouTrack connection error: ${err.message}`,
+      message: `YouTrack connection error: ${detailedMessage}`,
     });
   }
 });

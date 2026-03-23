@@ -4,6 +4,27 @@ import { loadSettings } from './settings.js';
 
 export const bugReportRouter = Router();
 
+// Helper function to get detailed fetch error message
+function getFetchErrorMessage(err: any): string {
+  if (err.cause) {
+    return `${err.message} (Cause: ${err.cause.message || err.cause})`;
+  }
+  if (err.code) {
+    const errorCodes: Record<string, string> = {
+      'ENOTFOUND': 'DNS lookup failed - check the URL',
+      'ECONNREFUSED': 'Connection refused - server may be down or port blocked',
+      'ECONNRESET': 'Connection reset by server',
+      'ETIMEDOUT': 'Connection timed out',
+      'CERT_HAS_EXPIRED': 'SSL certificate has expired',
+      'UNABLE_TO_VERIFY_LEAF_SIGNATURE': 'SSL certificate verification failed',
+      'DEPTH_ZERO_SELF_SIGNED_CERT': 'Self-signed SSL certificate not trusted',
+      'ENOTEMPTY': 'Host not found',
+    };
+    return errorCodes[err.code] || `${err.message} (Code: ${err.code})`;
+  }
+  return err.message;
+}
+
 // Analyze screenshot using GROQ Llama Scout (vision model)
 bugReportRouter.post('/analyze-screenshot', async (req: Request, res: Response) => {
   try {
@@ -120,15 +141,26 @@ ${additionalNotes ? `**Additional Notes:**\n${additionalNotes}` : ''}
 
     console.log(`Creating YouTrack issue at: ${createIssueUrl}`);
 
-    const response = await fetch(createIssueUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(youtrackPayload),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    let response: Response;
+    try {
+      response = await fetch(createIssueUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(youtrackPayload),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchErr: any) {
+      clearTimeout(timeoutId);
+      throw fetchErr;
+    }
 
     const responseText = await response.text();
     let data: any;
@@ -195,9 +227,10 @@ ${additionalNotes ? `**Additional Notes:**\n${additionalNotes}` : ''}
 
   } catch (err: any) {
     console.error('YouTrack issue creation error:', err);
+    const detailedMessage = getFetchErrorMessage(err);
     res.status(500).json({
       success: false,
-      message: `YouTrack issue creation error: ${err.message}`,
+      message: `YouTrack issue creation error: ${detailedMessage}`,
     });
   }
 });
